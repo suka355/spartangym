@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("admins")
+}
+
+model Member {
+  id                  Int              @id @default(autoincrement())
+  email               String           @unique
+  password            String
+  firstName           String
+  lastName            String
+  phone               String?
+  avatarUrl           String?
+  dateOfBirth         DateTime?
+  gender              String?
+  address             String?
+  emergencyContact    String?
+  healthNotes         String?
+  joinedAt            DateTime         @default(now())
+  planId              Int?
+  membershipStatus    MembershipStatus @default(PENDING)
+  membershipStartDate DateTime?
+  membershipEndDate   DateTime?
+  membershipAutoRenew Boolean          @default(false)
+  plan                MembershipPlan?  @relation(fields: [planId], references: [id])
+  bookings            Booking[]
+  payments            Payment[]
+  progress            Progress[]
+
+  @@map("members")
+}
+
+model Trainer {
+  id          Int        @id @default(autoincrement())
+  email       String     @unique
+  password    String
+  firstName   String
+  lastName    String
+  phone       String?
+  avatarUrl   String?
+  bio         String?
+  specialties String[]
+  classes     GymClass[] @relation("TrainerClasses")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+
+  @@map("trainers")
+}
+
+model MembershipPlan {
+  id          Int             @id @default(autoincrement())
+  tier        MembershipType  @unique
+  name        String
+  price       Decimal         @db.Decimal(10, 2)
+  description String
+  features    String[]
+  isFeatured  Boolean         @default(false)
+  isActive    Boolean         @default(true)
+  updatedAt   DateTime        @default(now()) @updatedAt
+  members     Member[]
+
+  @@map("membership_plans")
+}
+
+model GymClass {
+  id            Int             @id @default(autoincrement())
+  name          String
+  description   String?
+  trainerId     Int?
+  duration      Int
+  maxCapacity   Int
+  difficulty    DifficultyLevel @default(BEGINNER)
+  location      String?
+  imageUrl      String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @default(now()) @updatedAt
+  categoryName  String?
+  categoryColor String?
+  schedules     ClassSchedule[]
+  trainer       Trainer?        @relation("TrainerClasses", fields: [trainerId], references: [id])
+
+  @@map("gym_classes")
+}
+
+model ClassSchedule {
+  id          Int       @id @default(autoincrement())
+  classId     Int
+  startsAt    DateTime
+  endsAt      DateTime
+  isRecurring Boolean   @default(false)
+  recurRule   String?
+  isCancelled Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  bookings    Booking[]
+  gymClass    GymClass  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@map("class_schedules")
+}
+
+model Booking {
+  id          Int           @id @default(autoincrement())
+  memberId    Int
+  scheduleId  Int
+  status      BookingStatus @default(CONFIRMED)
+  bookedAt    DateTime      @default(now())
+  cancelledAt DateTime?
+  checkInAt   DateTime?
+  notes       String?
+  schedule    ClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  member      Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, scheduleId])
+  @@map("bookings")
+}
+
+model Payment {
+  id              Int           @id @default(autoincrement())
+  memberId        Int
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("USD")
+  status          PaymentStatus @default(PENDING)
+  method          PaymentMethod
+  stripePaymentId String?       @unique
+  receipt         String?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+  member          Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Progress {
+  id         Int      @id @default(autoincrement())
+  memberId   Int
+  recordedAt DateTime @default(now())
+  weight     Decimal? @db.Decimal(5, 2)
+  bodyFat    Decimal? @db.Decimal(4, 1)
+  muscleMass Decimal? @db.Decimal(5, 2)
+  notes      String?
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("progress")
+}
+
+enum MembershipType {
+  BASIC
+  STANDARD
+  PREMIUM
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  WAITLISTED
+  ATTENDED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  CASH
+}
+
+enum DifficultyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
